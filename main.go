@@ -13,16 +13,11 @@ const (
 	privateKey = "4f1c085290bec5afdc54df73535fc361"
 )
 
-var client *http.Client = &http.Client{Timeout: 2 * time.Second}
 var store = sessions.NewCookieStore([]byte("geetestdemo"))
 
 func registerGeetest(w http.ResponseWriter, r *http.Request) {
 
-	geetest := geetest.GeetestLib{
-		captchaID,
-		privateKey,
-		client,
-	}
+	geetest := geetest.NewGeetestLib(captchaID, privateKey, 2 * time.Second)
 	status, response := geetest.PreProcess("", "")
 	session, _ := store.Get(r, "geetest")
 	session.Values["geetest_status"] = status
@@ -33,11 +28,7 @@ func registerGeetest(w http.ResponseWriter, r *http.Request) {
 func validateGeetest(w http.ResponseWriter, r *http.Request) {
 	var geetestRes bool
 	r.ParseForm()
-	geetest := geetest.GeetestLib{
-		captchaID,
-		privateKey,
-		client,
-	}
+	geetest := geetest.NewGeetestLib(captchaID, privateKey, 2 * time.Second)
 	res := make(map[string]interface{})
 	session, _ := store.Get(r, "geetest")
 	challenge := r.Form.Get("geetest_challenge")
@@ -46,7 +37,7 @@ func validateGeetest(w http.ResponseWriter, r *http.Request) {
 	val := session.Values["geetest_status"]
 	status := val.(int8)
 	if status == 1 {
-		geetestRes = geetest.SuccessValidate(challenge, validate, seccode, "")
+		geetestRes = geetest.SuccessValidate(challenge, validate, seccode, "", "")
 	} else {
 		geetestRes = geetest.FailbackValidate(challenge, validate, seccode)
 	}

@@ -5,11 +5,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 type GeetestLib struct {
@@ -37,7 +37,14 @@ func MD5Encode(input string) string {
 	return hex.EncodeToString(md5Instant.Sum(nil))
 }
 
-func (g *GeetestLib) GetFailBackRegisterResponse(success int, challenge string) []byte {
+// 初始化 GeetestLib
+func NewGeetestLib(capthcaID string, privateKey string, timeOut time.Duration) (geetest GeetestLib){
+	client := &http.Client{Timeout: timeOut}
+	geetest = GeetestLib{capthcaID, privateKey, client}
+	return
+}
+
+func (g *GeetestLib) getFailBackRegisterResponse(success int, challenge string) []byte {
 	if challenge == "" {
 		challenge = hex.EncodeToString(md5.New().Sum(nil))
 	}
@@ -52,7 +59,7 @@ func (g *GeetestLib) GetFailBackRegisterResponse(success int, challenge string) 
 	return res
 }
 
-func (g *GeetestLib) Do(req *http.Request) (body []byte, err error) {
+func (g *GeetestLib) do(req *http.Request) (body []byte, err error) {
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	var resp *http.Response
 	if resp, err = g.Client.Do(req); err != nil {
@@ -81,20 +88,20 @@ func (g *GeetestLib) PreProcess(userID string, userIP string) (int8, []byte) {
 		params.Add("ip_adress", userIP)
 	}
 	req, _ := http.NewRequest("GET", registerURL+"?"+params.Encode(), nil)
-	body, err := g.Do(req)
+	body, err := g.do(req)
 	if err != nil {
-		return 0, g.GetFailBackRegisterResponse(0, "")
+		return 0, g.getFailBackRegisterResponse(0, "")
 	}
 	challenge := string(body)
 	if len(challenge) != 32 {
-		return 0, g.GetFailBackRegisterResponse(0, "")
+		return 0, g.getFailBackRegisterResponse(0, "")
 	} else {
 		challenge = MD5Encode(challenge + g.PrivateKey)
-		return 1, g.GetFailBackRegisterResponse(1, challenge)
+		return 1, g.getFailBackRegisterResponse(1, challenge)
 	}
 }
 
-func (g *GeetestLib) CheckParas(challenge string, validate string, seccode string) bool {
+func (g *GeetestLib) checkParas(challenge string, validate string, seccode string) bool {
 	if challenge == "" || validate == "" || seccode == "" {
 		return false
 	}
@@ -109,8 +116,8 @@ func (g *GeetestLib) checkFailbackRes(challenge string, validate string) bool {
 	return MD5Encode(challenge) == validate
 }
 
-func (g *GeetestLib) SuccessValidate(challenge string, validate string, seccode string, userID string) bool {
-	if !g.CheckParas(challenge, validate, seccode) {
+func (g *GeetestLib) SuccessValidate(challenge string, validate string, seccode string, userID string, userIP string) bool {
+	if !g.checkParas(challenge, validate, seccode) {
 		return false
 	}
 	if !g.checkSuccessRes(challenge, validate) {
@@ -121,13 +128,14 @@ func (g *GeetestLib) SuccessValidate(challenge string, validate string, seccode 
 	params.Add("challenge", challenge)
 	params.Add("captchaid", g.CaptchaID)
 	params.Add("sdk", "golang_v1.0.0")
-	hehe := MD5Encode(g.PrivateKey + "geetest" + challenge)
-	fmt.Println(hehe)
 	if userID != "" {
 		params.Add("user_id", userID)
 	}
+	if userIP != "" {
+		params.Add("ip_adress", userIP)
+	}
 	req, _ := http.NewRequest("POST", validateURL, strings.NewReader(params.Encode()))
-	body, err := g.Do(req)
+	body, err := g.do(req)
 	if err != nil {
 		return false
 	}
@@ -136,7 +144,7 @@ func (g *GeetestLib) SuccessValidate(challenge string, validate string, seccode 
 }
 
 func (g *GeetestLib) FailbackValidate(challenge string, validate string, seccode string) bool {
-	if !g.CheckParas(challenge, validate, seccode) {
+	if !g.checkParas(challenge, validate, seccode) {
 		return false
 	}
 	if !g.checkFailbackRes(challenge, validate) {
