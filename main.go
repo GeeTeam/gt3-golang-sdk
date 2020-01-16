@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"github.com/gorilla/sessions"
-	"gt3-golang-sdk/geetest"
+	"github.com/GeeTeam/gt3-golang-sdk/geetest"
 	"net/http"
 	"time"
 )
