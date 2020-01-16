@@ -65,8 +65,8 @@ func validateGeetest(w http.ResponseWriter, r *http.Request) {
 
 ### 运行demo
 
-1. git clone https://github.com/GeeTeam/gt3-golang-sdk.git
-2. `cd gt3-golang-sdk/demo`
+
+1. 进入sdk项目根目录
 2. `go run main.go`
 3. 在浏览器中访问**http://localhost:8888/static/login.html**
 
